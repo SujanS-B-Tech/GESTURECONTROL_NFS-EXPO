@@ -1,0 +1,49 @@
+{
+  "control_scheme": "INTUITIVE_STEERING_DRIVE",
+  "gestures": {
+    "steering": {
+      "name": "Virtual Steering Wheel",
+      "hands_required": ["Left", "Right"],
+      "action_type": "analog_axis",
+      "target": "left_stick_x",
+      "description": "Steer left/right with both hands in all modes (forward, reverse, drift)"
+    },
+    "drive_forward": {
+      "name": "Drive / Move Forward",
+      "hands_required": ["Left", "Right"],
+      "gesture": "both_closed_fists",
+      "action_type": "analog_trigger",
+      "target": "right_trigger",
+      "description": "Both hands closed/gripping wheel automatically drives forward freely"
+    },
+    "stop_and_reverse": {
+      "name": "Stop / Reverse",
+      "hands_required": ["Left", "Right"],
+      "gesture": "both_open_palms",
+      "action_type": "analog_trigger",
+      "target": "left_trigger",
+      "description": "Both palms open stops the car and reverses with full backward steering"
+    },
+    "drift_handbrake": {
+      "name": "Drift Handbrake",
+      "hands_required": ["Left", "Right"],
+      "gesture": "one_closed_one_open",
+      "action_type": "button_hold",
+      "target": "button_x",
+      "description": "One hand closed and one hand open triggers handbrake for power drifting"
+    },
+    "nitrous": {
+      "name": "Nitrous Boost",
+      "gesture": "thumbs_up",
+      "action_type": "button_pulse",
+      "target": "button_a",
+      "cooldown_ms": 600,
+      "description": "Thumbs up on either hand triggers Nitrous Boost (Xbox A)"
+    }
+  },
+  "thresholds": {
+    "fist_curl_min": 0.48,
+    "open_palm_extension_min": 0.52,
+    "thumbs_up_angle_tolerance_deg": 40.0
+  }
+}

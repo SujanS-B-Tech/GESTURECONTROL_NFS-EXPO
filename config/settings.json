@@ -1,0 +1,55 @@
+{
+  "camera": {
+    "device_index": 0,
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "mirror_horizontal": true,
+    "api_preference": "DSHOW"
+  },
+  "tracking": {
+    "min_detection_confidence": 0.7,
+    "min_tracking_confidence": 0.6,
+    "max_num_hands": 2,
+    "model_complexity": 1
+  },
+  "steering": {
+    "neutral_angle": 0.0,
+    "deadzone_angle": 3.0,
+    "max_angle": 42.0,
+    "sensitivity": 1.15,
+    "smoothing_factor": 0.35,
+    "response_curve": "cubic",
+    "invert": false
+  },
+  "throttle": {
+    "analog_mode": true,
+    "sensitivity": 1.0,
+    "smoothing_factor": 0.3,
+    "gradual_release": true,
+    "release_decay_rate": 0.18
+  },
+  "brake": {
+    "analog_mode": true,
+    "sensitivity": 1.0,
+    "smoothing_factor": 0.3,
+    "gradual_release": true,
+    "release_decay_rate": 0.22
+  },
+  "safety": {
+    "tracking_loss_timeout_ms": 250,
+    "camera_watchdog_timeout_ms": 1000,
+    "auto_neutral_on_lost_hands": true,
+    "emergency_stop_key": "F12"
+  },
+  "game": {
+    "process_names": [
+      "NeedForSpeedHeat.exe",
+      "NFSHeat.exe",
+      "NFS19.exe",
+      "NeedForSpeedHeatTrial.exe"
+    ],
+    "check_interval_seconds": 2.0
+  }
+}
+
