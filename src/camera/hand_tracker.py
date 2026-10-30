@@ -85,10 +85,10 @@ class HandTracker:
     def __init__(
         self,
         model_path: str = "assets/models/hand_landmarker.task",
-        min_detection_confidence: float = 0.7,
-        min_tracking_confidence: float = 0.6,
+        min_detection_confidence: float = 0.55,
+        min_tracking_confidence: float = 0.50,
         max_num_hands: int = 2,
-        smoothing_alpha: float = 0.7,
+        smoothing_alpha: float = 0.85,
         mirrored: bool = True
     ):
         self.model_path = model_path
@@ -134,6 +134,8 @@ class HandTracker:
         left_hand_data: Optional[HandData] = None
         right_hand_data: Optional[HandData] = None
 
+        detected_hands: List[HandData] = []
+
         if results.hand_landmarks and results.handedness:
             for hand_landmarks, handedness_categories in zip(
                 results.hand_landmarks, results.handedness
@@ -154,19 +156,10 @@ class HandTracker:
                     dtype=np.float32
                 )
 
-                # Temporal smoothing
-                if corrected_label in self._previous_landmarks:
-                    prev = self._previous_landmarks[corrected_label]
-                    smoothed_coords = self.smoothing_alpha * raw_coords + (1.0 - self.smoothing_alpha) * prev
-                else:
-                    smoothed_coords = raw_coords
-
-                self._previous_landmarks[corrected_label] = smoothed_coords
-
                 # Pixel coordinates
                 pixel_coords = np.zeros((21, 2), dtype=np.int32)
-                pixel_coords[:, 0] = np.clip(smoothed_coords[:, 0] * w, 0, w - 1).astype(np.int32)
-                pixel_coords[:, 1] = np.clip(smoothed_coords[:, 1] * h, 0, h - 1).astype(np.int32)
+                pixel_coords[:, 0] = np.clip(raw_coords[:, 0] * w, 0, w - 1).astype(np.int32)
+                pixel_coords[:, 1] = np.clip(raw_coords[:, 1] * h, 0, h - 1).astype(np.int32)
 
                 # Compute Bounding Box
                 x_min = int(np.min(pixel_coords[:, 0]))
@@ -177,7 +170,7 @@ class HandTracker:
 
                 hand_obj = HandData(
                     handedness=corrected_label,
-                    landmarks=smoothed_coords,
+                    landmarks=raw_coords,
                     pixel_landmarks=pixel_coords,
                     confidence=confidence,
                     bbox=bbox,
@@ -185,11 +178,39 @@ class HandTracker:
                     index_tip_px=(pixel_coords[8, 0], pixel_coords[8, 1]),
                     thumb_tip_px=(pixel_coords[4, 0], pixel_coords[4, 1]),
                 )
+                detected_hands.append(hand_obj)
 
-                if corrected_label == "Left":
-                    left_hand_data = hand_obj
-                else:
-                    right_hand_data = hand_obj
+        # Spatial sorting: In steering position, Left Hand is ALWAYS on the left (smaller X),
+        # and Right Hand is ALWAYS on the right (larger X). This permanently prevents
+        # MediaPipe from misclassifying clenched fists as the same hand!
+        if len(detected_hands) >= 2:
+            # Sort by horizontal center position
+            detected_hands.sort(key=lambda h_data: h_data.bbox[0] + h_data.bbox[2] / 2.0)
+            left_hand_data = detected_hands[0]
+            left_hand_data.handedness = "Left"
+
+            right_hand_data = detected_hands[1]
+            right_hand_data.handedness = "Right"
+        elif len(detected_hands) == 1:
+            h_data = detected_hands[0]
+            center_x = h_data.bbox[0] + h_data.bbox[2] / 2.0
+            if center_x < w / 2.0:
+                h_data.handedness = "Left"
+                left_hand_data = h_data
+            else:
+                h_data.handedness = "Right"
+                right_hand_data = h_data
+
+        # Apply temporal smoothing with correct spatial labels
+        for hand_data in [left_hand_data, right_hand_data]:
+            if hand_data is not None:
+                lbl = hand_data.handedness
+                if lbl in self._previous_landmarks:
+                    prev = self._previous_landmarks[lbl]
+                    hand_data.landmarks = self.smoothing_alpha * hand_data.landmarks + (1.0 - self.smoothing_alpha) * prev
+                    hand_data.pixel_landmarks[:, 0] = np.clip(hand_data.landmarks[:, 0] * w, 0, w - 1).astype(np.int32)
+                    hand_data.pixel_landmarks[:, 1] = np.clip(hand_data.landmarks[:, 1] * h, 0, h - 1).astype(np.int32)
+                self._previous_landmarks[lbl] = hand_data.landmarks
 
         # Clear smoothing buffer for hands not seen in current frame
         active_labels = []
@@ -221,14 +242,21 @@ class HandTracker:
 
         # Draw steering wheel axle line if steering is active
         if hand_result.both_hands_detected and steering_wheel_active:
-            p1 = hand_result.left_hand.wrist_px
-            p2 = hand_result.right_hand.wrist_px
+            palm_indices = [0, 5, 9, 13, 17]
+            p1_x = int(np.mean(hand_result.left_hand.pixel_landmarks[palm_indices, 0]))
+            p1_y = int(np.mean(hand_result.left_hand.pixel_landmarks[palm_indices, 1]))
+            p2_x = int(np.mean(hand_result.right_hand.pixel_landmarks[palm_indices, 0]))
+            p2_y = int(np.mean(hand_result.right_hand.pixel_landmarks[palm_indices, 1]))
+            p1 = (p1_x, p1_y)
+            p2 = (p2_x, p2_y)
             center = ((p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2)
 
-            # Steering axle line (Racing Red & Cyan glow)
-            cv2.line(output, p1, p2, (30, 30, 220), 3, cv2.LINE_AA)
-            cv2.circle(output, center, 12, (0, 220, 255), -1, cv2.LINE_AA)
-            cv2.circle(output, center, 16, (0, 180, 220), 2, cv2.LINE_AA)
+            # Steering axle line (Racing Red & Cyan glow) connecting fist centroids
+            cv2.line(output, p1, p2, (30, 30, 220), 4, cv2.LINE_AA)
+            cv2.circle(output, p1, 8, (255, 200, 0), -1, cv2.LINE_AA)
+            cv2.circle(output, p2, 8, (50, 50, 255), -1, cv2.LINE_AA)
+            cv2.circle(output, center, 14, (0, 220, 255), -1, cv2.LINE_AA)
+            cv2.circle(output, center, 18, (0, 180, 220), 2, cv2.LINE_AA)
 
         for hand in [hand_result.left_hand, hand_result.right_hand]:
             if hand is None:

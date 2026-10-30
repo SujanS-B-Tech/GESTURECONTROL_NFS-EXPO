@@ -111,14 +111,14 @@ class GestureRecognizer:
         overall_curl = float(np.mean(curl_factors))
         overall_extension = float(1.0 - overall_curl)
 
-        is_fist = four_fingers_curl >= 0.48
-        is_open = four_fingers_curl <= 0.35 and thumb_curl <= 0.40
+        is_fist = four_fingers_curl >= 0.40
+        is_open = four_fingers_curl <= 0.28 and thumb_curl <= 0.35
 
         # 3. Thumbs-up check
         vec_thumb = lm[4][:2] - lm[2][:2]
         angle_from_up = math.degrees(math.atan2(vec_thumb[0], -vec_thumb[1]))
         is_pointing_up = abs(angle_from_up) <= self.thumbs_up_angle_tolerance_deg
-        is_thumbs_up = bool(is_pointing_up and (four_fingers_curl >= 0.42) and (lm[4][1] < lm[3][1] < lm[2][1]))
+        is_thumbs_up = bool(is_pointing_up and (four_fingers_curl >= 0.35) and (lm[4][1] < lm[3][1] < lm[2][1]))
 
         if is_thumbs_up:
             gesture = HandGesture.THUMBS_UP
@@ -143,10 +143,10 @@ class GestureRecognizer:
     def process_frame(self, hand_result: FrameHandResult) -> FrameGestureResult:
         """
         Processes driving intent across hands:
-        - Both closed = Drive forward
-        - Both open = Stop and Reverse
-        - One open, one closed = Drift Handbrake
-        - Either thumbs up = Nitrous
+        - Both hands gripping/closed = Drive forward (RT) & Steer smoothly
+        - Both hands open flat = Stop & Reverse (LT) & Steer backward
+        - One hand open flat + one gripped = Drift Handbrake (Button X)
+        - Either hand thumbs up = Nitrous Boost (Button A)
         """
         left_state = self.analyze_hand(hand_result.left_hand)
         right_state = self.analyze_hand(hand_result.right_hand)
@@ -161,31 +161,23 @@ class GestureRecognizer:
         one_open_one_closed = False
 
         if both_detected:
-            # Check for Nitrous with one hand driving
-            left_gripped = left_state.is_fist or left_state.is_thumbs_up
-            right_gripped = right_state.is_fist or right_state.is_thumbs_up
-
-            # 1. Drift Handbrake: Exactly one hand closed and the other hand open
-            if (left_state.is_fist and right_state.is_open) or (right_state.is_fist and left_state.is_open):
-                one_open_one_closed = True
-
-            # 2. Drive Forward: Both hands closed (or one fist + one thumbs up nitro)
-            elif (left_state.is_fist and right_state.is_fist) or (nitro_active and (left_gripped and right_gripped)):
-                both_closed = True
-
-            # 3. Stop & Reverse: Both palms open
-            elif left_state.is_open and right_state.is_open:
+            # 1. Stop & Reverse: Both hands deliberately open flat
+            if left_state.is_open and right_state.is_open:
                 both_open = True
 
-            # If hands are resting/steering naturally without full open palm, default to cruising forward
-            elif not one_open_one_closed and not both_open:
+            # 2. Drift Handbrake: Exactly one hand flat open and the other hand gripped
+            elif (left_state.is_open and not right_state.is_open) or (right_state.is_open and not left_state.is_open):
+                one_open_one_closed = True
+
+            # 3. Drive Forward: Gripping the steering wheel with fists / natural driving grip
+            else:
                 both_closed = True
         elif hand_result.any_hand_detected:
-            # Single hand visible: if gripped drive, if open brake
+            # Single hand fallback
             hand = right_state if hand_result.right_hand else left_state
             if hand.is_open:
                 both_open = True
-            elif hand.is_fist or hand.is_thumbs_up:
+            else:
                 both_closed = True
 
         # Calculate analog throttle (RT) and brake (LT)

@@ -15,24 +15,24 @@
   },
   "steering": {
     "neutral_angle": 0.0,
-    "deadzone_angle": 3.0,
-    "max_angle": 42.0,
-    "sensitivity": 1.15,
-    "smoothing_factor": 0.35,
-    "response_curve": "cubic",
+    "deadzone_angle": 1.2,
+    "max_angle": 18.0,
+    "sensitivity": 1.0,
+    "smoothing_factor": 0.80,
+    "response_curve": "linear",
     "invert": false
   },
   "throttle": {
     "analog_mode": true,
     "sensitivity": 1.0,
-    "smoothing_factor": 0.3,
+    "smoothing_factor": 0.35,
     "gradual_release": true,
     "release_decay_rate": 0.18
   },
   "brake": {
     "analog_mode": true,
     "sensitivity": 1.0,
-    "smoothing_factor": 0.3,
+    "smoothing_factor": 0.40,
     "gradual_release": true,
     "release_decay_rate": 0.22
   },
@@ -52,4 +52,3 @@
     "check_interval_seconds": 2.0
   }
 }
-

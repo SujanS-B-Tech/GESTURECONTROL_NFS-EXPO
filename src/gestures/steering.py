@@ -36,13 +36,13 @@ class VirtualSteeringWheel:
     def __init__(
         self,
         neutral_angle: float = 0.0,
-        deadzone_angle: float = 3.0,
-        max_angle: float = 42.0,
-        sensitivity: float = 1.15,
-        smoothing_factor: float = 0.35,
-        response_curve: str = "cubic",
+        deadzone_angle: float = 1.2,
+        max_angle: float = 18.0,
+        sensitivity: float = 1.0,
+        smoothing_factor: float = 0.80,
+        response_curve: str = "linear",
         invert: bool = False,
-        center_decay_rate: float = 0.25
+        center_decay_rate: float = 0.30
     ):
         self.neutral_angle = neutral_angle
         self.deadzone_angle = deadzone_angle
@@ -55,6 +55,11 @@ class VirtualSteeringWheel:
 
         self._current_normalized = 0.0
         self._last_valid_state = SteeringState()
+
+    def set_neutral_now(self, current_raw_angle: float):
+        """Quickly recalibrates the center neutral position to the current hand angle."""
+        self.neutral_angle = current_raw_angle
+        logger.info(f"Steering neutral calibrated to {self.neutral_angle:+.2f}°")
 
     def update(self, hand_result: FrameHandResult) -> SteeringState:
         """
@@ -83,13 +88,14 @@ class VirtualSteeringWheel:
         left = hand_result.left_hand
         right = hand_result.right_hand
 
-        # Use weighted average of wrist and middle MCP for rock-solid stability
-        # Index 0: Wrist, Index 9: Middle MCP
-        p_left_x = (left.pixel_landmarks[0, 0] * 0.4 + left.pixel_landmarks[9, 0] * 0.6)
-        p_left_y = (left.pixel_landmarks[0, 1] * 0.4 + left.pixel_landmarks[9, 1] * 0.6)
+        # Compute stable fist/palm centroid: average of Wrist (0) and Knuckles (5, 9, 13, 17)
+        # This centroid stays completely rock-solid when fingers are clenched into a fist!
+        palm_indices = [0, 5, 9, 13, 17]
+        p_left_x = float(np.mean(left.pixel_landmarks[palm_indices, 0]))
+        p_left_y = float(np.mean(left.pixel_landmarks[palm_indices, 1]))
 
-        p_right_x = (right.pixel_landmarks[0, 0] * 0.4 + right.pixel_landmarks[9, 0] * 0.6)
-        p_right_y = (right.pixel_landmarks[0, 1] * 0.4 + right.pixel_landmarks[9, 1] * 0.6)
+        p_right_x = float(np.mean(right.pixel_landmarks[palm_indices, 0]))
+        p_right_y = float(np.mean(right.pixel_landmarks[palm_indices, 1]))
 
         dx = p_right_x - p_left_x
         dy = p_right_y - p_left_y

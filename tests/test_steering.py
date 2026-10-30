@@ -14,13 +14,13 @@ def make_dummy_hand(label: str, wrist_x: int, wrist_y: int, mid_x: int, mid_y: i
     pixel_landmarks = np.zeros((21, 2), dtype=np.int32)
     landmarks = np.zeros((21, 3), dtype=np.float32)
 
-    # Index 0: Wrist
+    # Set palm centroid indices [0, 5, 9, 13, 17] uniformly around (mid_x, mid_y)
+    for idx in [0, 5, 9, 13, 17]:
+        pixel_landmarks[idx] = [mid_x, mid_y]
+        landmarks[idx] = [mid_x / 1280.0, mid_y / 720.0, 0.0]
+
     pixel_landmarks[0] = [wrist_x, wrist_y]
     landmarks[0] = [wrist_x / 1280.0, wrist_y / 720.0, 0.0]
-
-    # Index 9: Middle MCP
-    pixel_landmarks[9] = [mid_x, mid_y]
-    landmarks[9] = [mid_x / 1280.0, mid_y / 720.0, 0.0]
 
     return HandData(
         handedness=label,
@@ -76,6 +76,20 @@ def test_steering_right_turn():
     assert state.xbox_stick_x > 10000
 
 
+def test_fist_steering_precision():
+    """Verify that closed fists at steering wheel position produce accurate analog turn angles."""
+    wheel = VirtualSteeringWheel(neutral_angle=0.0, deadzone_angle=2.5, max_angle=35.0, smoothing_factor=1.0)
+
+    # Left fist tilted down (Left turn by ~25 degrees)
+    left_fist = make_dummy_hand("Left", 400, 430, 400, 430)
+    right_fist = make_dummy_hand("Right", 880, 290, 880, 290)
+    res = wheel.update(FrameHandResult(left_hand=left_fist, right_hand=right_fist))
+
+    assert res.active is True
+    assert res.relative_angle_deg < -10.0
+    assert res.xbox_stick_x < -8000
+
+
 def test_steering_hands_lost_returns_to_center():
     wheel = VirtualSteeringWheel(neutral_angle=0.0, deadzone_angle=2.0, max_angle=40.0, smoothing_factor=1.0, center_decay_rate=0.5)
 
@@ -91,4 +105,3 @@ def test_steering_hands_lost_returns_to_center():
 
     assert abs(state.normalized_value) < 0.05
     assert abs(state.xbox_stick_x) < 1500
-

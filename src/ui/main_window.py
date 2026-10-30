@@ -61,8 +61,10 @@ class MainWindow(QMainWindow):
         self.tracker: Optional[HandTracker] = None
         self.steering = VirtualSteeringWheel(
             neutral_angle=profile.neutral_angle,
-            deadzone_angle=profile.deadzone_angle,
-            max_angle=profile.max_right_angle
+            deadzone_angle=profile.deadzone_angle if profile.is_calibrated else 2.5,
+            max_angle=profile.max_right_angle if profile.is_calibrated else 35.0,
+            sensitivity=1.25,
+            smoothing_factor=0.60
         )
         self.recognizer = GestureRecognizer()
         self.controller = VirtualXboxController()
