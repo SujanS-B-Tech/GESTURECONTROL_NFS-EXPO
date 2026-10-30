@@ -85,8 +85,12 @@ To enable Windows and Steam to recognize the virtual Xbox 360 controller:
 2. Click **"Yes"** on the Windows UAC elevation prompt and complete the setup wizard.
 3. Once finished, Windows will have the Nefarius Virtual Gamepad Emulation Bus active.
 
-### Step 2: Launch GESTUREDRIVE X
-Double-click `run_gesturedrive.bat` or run in terminal:
+### Step 2: Environment Setup (Automatic or Manual)
+If running for the first time or if the virtual environment needs rebuilding:
+- Double-click [`setup.bat`](file:///d:/PROJECTS/Projects/GESTURECONTROL-NFS/setup.bat) to automatically create the Python 3.12 virtual environment and install all dependencies.
+
+### Step 3: Launch GESTUREDRIVE X
+Double-click [`run_gesturedrive.bat`](file:///d:/PROJECTS/Projects/GESTURECONTROL-NFS/run_gesturedrive.bat) (which also automatically detects and triggers setup if `.venv` is missing) or run in terminal:
 ```bash
 .\.venv\Scripts\python.exe main.py
 ```
