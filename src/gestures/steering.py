@@ -36,19 +36,19 @@ class VirtualSteeringWheel:
     def __init__(
         self,
         neutral_angle: float = 0.0,
-        deadzone_angle: float = 1.2,
-        max_angle: float = 18.0,
-        sensitivity: float = 1.0,
-        smoothing_factor: float = 0.80,
-        response_curve: str = "linear",
+        deadzone_angle: float = 1.0,
+        max_angle: float = 14.0,
+        sensitivity: float = 1.40,
+        smoothing_factor: float = 0.92,
+        response_curve: str = "progressive_sharp",
         invert: bool = False,
-        center_decay_rate: float = 0.30
+        center_decay_rate: float = 0.35
     ):
         self.neutral_angle = neutral_angle
         self.deadzone_angle = deadzone_angle
         self.max_angle = max_angle
         self.sensitivity = sensitivity
-        self.smoothing_factor = smoothing_factor  # 0.0 = freeze, 1.0 = instant
+        self.smoothing_factor = smoothing_factor  # 0.0 = freeze, 1.0 = instant (0.92 = sub-16ms snappy response)
         self.response_curve = response_curve
         self.invert = invert
         self.center_decay_rate = center_decay_rate
@@ -127,13 +127,18 @@ class VirtualSteeringWheel:
         usable_range = max(self.max_angle - self.deadzone_angle, 5.0)
         target_norm = np.clip(effective_angle / usable_range, -1.0, 1.0)
 
-        # Apply non-linear response curves
-        if self.response_curve == "cubic":
-            # 60% cubic, 40% linear: ultra-fine control near center, full authority at lock
-            target_norm = 0.6 * (target_norm ** 3) + 0.4 * target_norm
+        # Apply response curves
+        if self.response_curve in ["progressive_sharp", "precision", "progressive"]:
+            # 85% linear + 15% quadratic: instant bite with steady center stability
+            sign = math.copysign(1.0, target_norm)
+            target_norm = sign * (0.85 * abs(target_norm) + 0.15 * (abs(target_norm) ** 2))
+        elif self.response_curve == "linear":
+            pass  # Direct 1:1 linear steering
+        elif self.response_curve == "cubic":
+            target_norm = 0.5 * (target_norm ** 3) + 0.5 * target_norm
         elif self.response_curve == "exponential":
             sign = math.copysign(1.0, target_norm)
-            target_norm = sign * (abs(target_norm) ** 1.4)
+            target_norm = sign * (abs(target_norm) ** 1.3)
 
         # Apply sensitivity multiplier
         target_norm = np.clip(target_norm * self.sensitivity, -1.0, 1.0)

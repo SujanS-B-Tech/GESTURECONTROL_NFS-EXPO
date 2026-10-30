@@ -67,7 +67,8 @@ def test_nitro_pulse_and_cooldown():
 
     gestures = FrameGestureResult(thumbs_up_nitro=True)
 
-    # First trigger: nitro button A should activate
+    # 2 consecutive frames required to prevent accidental triggers
+    mapper.process(SteeringState(), gestures)
     mapper.process(SteeringState(), gestures)
     assert controller.state.button_a is True
 

@@ -105,3 +105,26 @@ def test_steering_hands_lost_returns_to_center():
 
     assert abs(state.normalized_value) < 0.05
     assert abs(state.xbox_stick_x) < 1500
+
+
+def test_sharp_steering_sensitivity():
+    """Verify default sharp wheel profile reaches >60% steering with only ~8 degrees hand tilt."""
+    wheel = VirtualSteeringWheel(
+        neutral_angle=0.0,
+        deadzone_angle=1.0,
+        max_angle=14.0,
+        sensitivity=1.40,
+        smoothing_factor=1.0,
+        response_curve="progressive_sharp"
+    )
+
+    # 480px width, dy = 68px -> atan2(68, 480) ~= 8.06 degrees
+    left = make_dummy_hand("Left", 400, 326, 400, 326)
+    right = make_dummy_hand("Right", 880, 394, 880, 394)
+    res = wheel.update(FrameHandResult(left_hand=left, right_hand=right))
+
+    assert 7.5 < res.relative_angle_deg < 8.5
+    # Must deliver at least 0.60 (60%) steering authority at ~8 degrees tilt
+    assert res.normalized_value >= 0.60
+    assert res.xbox_stick_x >= 19500
+

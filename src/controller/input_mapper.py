@@ -28,6 +28,8 @@ class InputMapper:
         self._nitro_cooldown_s = 0.60
         self._nitro_pulse_duration_s = 0.15
         self._nitro_active = False
+        self._nitro_consecutive_frames = 0
+        self._nitro_required_frames = 2
 
     def process(
         self,
@@ -54,8 +56,13 @@ class InputMapper:
         self.controller.set_throttle(gestures.throttle_analog)
         self.controller.set_brake(gestures.brake_analog)
 
-        # 4. Nitrous Boost (Either hand thumbs up -> Button A)
-        if gestures.thumbs_up_nitro and not self._nitro_active:
+        # 4. Nitrous Boost (Deliberate Thumbs Up held for at least 2 frames -> Button A)
+        if gestures.thumbs_up_nitro:
+            self._nitro_consecutive_frames += 1
+        else:
+            self._nitro_consecutive_frames = 0
+
+        if self._nitro_consecutive_frames >= self._nitro_required_frames and not self._nitro_active:
             if (now - self._last_nitro_time) >= self._nitro_cooldown_s:
                 self._nitro_active = True
                 self._last_nitro_time = now

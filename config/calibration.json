@@ -1,0 +1,10 @@
+{
+  "neutral_angle": 2.49,
+  "deadzone_angle": 3.0,
+  "max_left_angle": 34.56,
+  "max_right_angle": 42.94,
+  "fist_curl_threshold": 0.39,
+  "open_palm_extension_threshold": 0.78,
+  "calibrated_at": "2026-10-30 12:10:05",
+  "is_calibrated": true
+}

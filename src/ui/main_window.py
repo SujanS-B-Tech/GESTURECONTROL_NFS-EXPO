@@ -34,6 +34,7 @@ from src.ui.dashboard import VideoDisplayWidget, SteeringWheelWidget, TelemetryB
 from src.ui.calibration_ui import CalibrationWizardDialog
 from src.ui.settings import SettingsDialog
 from src.ui.controller_test_ui import ControllerTestDialog
+from src.ui.overlay import InGameOverlayHUD
 
 
 class MainWindow(QMainWindow):
@@ -61,28 +62,51 @@ class MainWindow(QMainWindow):
         self.tracker: Optional[HandTracker] = None
         self.steering = VirtualSteeringWheel(
             neutral_angle=profile.neutral_angle,
-            deadzone_angle=profile.deadzone_angle if profile.is_calibrated else 2.5,
-            max_angle=profile.max_right_angle if profile.is_calibrated else 35.0,
-            sensitivity=1.25,
-            smoothing_factor=0.60
+            deadzone_angle=profile.deadzone_angle if profile.is_calibrated else 1.0,
+            max_angle=profile.max_right_angle if profile.is_calibrated else 14.0,
+            sensitivity=1.40,
+            smoothing_factor=0.92,
+            response_curve="progressive_sharp"
         )
-        self.recognizer = GestureRecognizer()
+        self.recognizer = GestureRecognizer(
+            throttle_smoothing=0.75,
+            brake_smoothing=0.85
+        )
         self.controller = VirtualXboxController()
         self.mapper = InputMapper(self.controller)
         self.watchdog = SafetyWatchdog(self.controller)
 
+        # Sensitivity Presets (Sharp, High-Response Racing Steering)
+        self._sens_presets = [
+            ("STEERING: SHARP (1.4x)", 1.40),
+            ("STEERING: HYPER (1.8x)", 1.80),
+            ("STEERING: DRIFT PRO (2.2x)", 2.20),
+            ("STEERING: BALANCED (1.0x)", 1.00)
+        ]
+        self._sens_idx = 0  # SHARP default
+
         # Active dialog references
         self._test_dialog: Optional[ControllerTestDialog] = None
         self._calibration_dialog: Optional[CalibrationWizardDialog] = None
+        self.overlay: Optional[InGameOverlayHUD] = None
 
         # State flags
         self.is_tracking = False
+
+        # Global Hotkey State (Windows GetAsyncKeyState Edge Detection)
+        self._key_down_states = {}
 
         # Build UI layout
         self._init_ui()
 
         # Keyboard shortcuts
         self._setup_shortcuts()
+
+        # Global Windows Hotkey Polling Timer (Checks F10, F9, F12, C every 25ms even when NFS Heat has focus)
+        self._hotkey_timer = QTimer(self)
+        self._hotkey_timer.setInterval(25)
+        self._hotkey_timer.timeout.connect(self._poll_global_hotkeys)
+        self._hotkey_timer.start()
 
         # High-frequency Processing Loop Timer (30-60 FPS)
         self.process_timer = QTimer(self)
@@ -164,7 +188,38 @@ class MainWindow(QMainWindow):
         # 1. Header Toolbar
         main_layout.addLayout(self._create_header())
 
-        # 2. Main Content Splitter (Left: Live Video & Controls, Right: Telemetry & Status)
+        # 2. NFS Heat Borderless Mode Setup Banner
+        self.banner_nfs = QFrame()
+        self.banner_nfs.setStyleSheet("""
+            QFrame {
+                background-color: #0E1622;
+                border: 1px solid #00E5FF;
+                border-radius: 6px;
+            }
+        """)
+        banner_layout = QHBoxLayout(self.banner_nfs)
+        banner_layout.setContentsMargins(12, 6, 12, 6)
+        banner_layout.setSpacing(10)
+
+        lbl_icon = QLabel("🎮")
+        lbl_icon.setStyleSheet("font-size: 14px;")
+        banner_layout.addWidget(lbl_icon)
+
+        self.lbl_banner_msg = QLabel(
+            "<b>NFS HEAT OVERLAY GUIDE:</b> Press <b>[Alt + Enter]</b> in NFS Heat (or set Video to <b>'Borderless'</b>) "
+            "so this floating HUD can render directly over your game! Press <b>[F10]</b> to toggle HUD anytime."
+        )
+        self.lbl_banner_msg.setStyleSheet("color: #DDE2EC; font-size: 11px;")
+        banner_layout.addWidget(self.lbl_banner_msg, stretch=1)
+
+        btn_guide = QPushButton("HOW TO ENABLE BORDERLESS")
+        btn_guide.setStyleSheet("background-color: #1A2838; border: 1px solid #00E5FF; color: #00E5FF; font-size: 10px; padding: 4px 10px;")
+        btn_guide.clicked.connect(self._show_borderless_help)
+        banner_layout.addWidget(btn_guide)
+
+        main_layout.addWidget(self.banner_nfs)
+
+        # 3. Main Content Splitter (Left: Live Video & Controls, Right: Telemetry & Status)
         content_layout = QHBoxLayout()
         content_layout.setSpacing(14)
 
@@ -212,7 +267,12 @@ class MainWindow(QMainWindow):
 
         header.addStretch()
 
-        # Top Buttons: Test Controller, Calibrate, Settings
+        # Top Buttons: Overlay HUD, Test Controller, Calibrate, Settings
+        self.btn_overlay = QPushButton("IN-GAME OVERLAY (F10)")
+        self.btn_overlay.setStyleSheet("background-color: #0E3A4A; border: 1px solid #00E5FF; color: #FFFFFF;")
+        self.btn_overlay.clicked.connect(self._toggle_overlay)
+        header.addWidget(self.btn_overlay)
+
         self.btn_test_mode = QPushButton("CONTROLLER MONITOR")
         self.btn_test_mode.clicked.connect(self._open_controller_monitor)
         header.addWidget(self.btn_test_mode)
@@ -236,6 +296,18 @@ class MainWindow(QMainWindow):
         self.btn_toggle_tracking.setMinimumHeight(38)
         self.btn_toggle_tracking.clicked.connect(self._toggle_tracking)
         bar.addWidget(self.btn_toggle_tracking, stretch=2)
+
+        self.btn_sens = QPushButton(self._sens_presets[self._sens_idx][0])
+        self.btn_sens.setMinimumHeight(38)
+        self.btn_sens.setStyleSheet("background-color: #202030; border: 1px solid #FF9100; color: #FF9100;")
+        self.btn_sens.clicked.connect(self._cycle_sensitivity)
+        bar.addWidget(self.btn_sens, stretch=2)
+
+        self.btn_recenter = QPushButton("RECENTER WHEEL (C)")
+        self.btn_recenter.setMinimumHeight(38)
+        self.btn_recenter.setStyleSheet("background-color: #1A2838; border: 1px solid #00E5FF;")
+        self.btn_recenter.clicked.connect(self._recenter_steering)
+        bar.addWidget(self.btn_recenter, stretch=2)
 
         self.btn_emergency_stop = QPushButton("EMERGENCY STOP (F12)")
         self.btn_emergency_stop.setObjectName("btn_danger")
@@ -308,6 +380,113 @@ class MainWindow(QMainWindow):
 
         shortcut_space = QShortcut(QKeySequence("Space"), self)
         shortcut_space.activated.connect(self._toggle_tracking)
+
+        shortcut_c = QShortcut(QKeySequence("C"), self)
+        shortcut_c.activated.connect(self._recenter_steering)
+
+        shortcut_f10 = QShortcut(QKeySequence("F10"), self)
+        shortcut_f10.activated.connect(self._toggle_overlay)
+
+        shortcut_f9 = QShortcut(QKeySequence("F9"), self)
+        shortcut_f9.activated.connect(self._snap_overlay_next_corner)
+
+        shortcut_s = QShortcut(QKeySequence("S"), self)
+        shortcut_s.activated.connect(self._cycle_sensitivity)
+
+    def _poll_global_hotkeys(self):
+        """
+        Polls global asynchronous key states via Win32 GetAsyncKeyState.
+        Allows F10 (overlay toggle), F9 (snap corner), F12 (emergency stop),
+        and C (recenter) to function globally even while NFS Heat has foreground focus!
+        """
+        if sys.platform != "win32":
+            return
+
+        import ctypes
+        user32 = ctypes.windll.user32
+
+        # Virtual Key Codes
+        VK_F10 = 0x79
+        VK_F9 = 0x78
+        VK_F12 = 0x7B
+        VK_C = 0x43
+
+        keys_to_check = [
+            (VK_F10, self._toggle_overlay),
+            (VK_F9, self._snap_overlay_next_corner),
+            (VK_F12, self._toggle_emergency_stop),
+        ]
+
+        # Only allow 'C' recenter if tracking is active to avoid interfering with normal text typing
+        if self.is_tracking:
+            keys_to_check.append((VK_C, self._recenter_steering))
+
+        for vk, callback in keys_to_check:
+            # 0x8000 is set if the key is currently held down
+            is_down = bool(user32.GetAsyncKeyState(vk) & 0x8000)
+            was_down = self._key_down_states.get(vk, False)
+            self._key_down_states[vk] = is_down
+
+            # Clean edge trigger on initial press transition only
+            if is_down and not was_down:
+                callback()
+
+    def _toggle_overlay(self):
+        """Toggles the floating in-game picture-in-picture overlay on/off."""
+        if self.overlay is None:
+            self.overlay = InGameOverlayHUD()
+            self.overlay.snap_to_corner(0)  # Top-Right by default
+
+        if self.overlay.isVisible():
+            self.overlay.hide()
+            self.btn_overlay.setText("IN-GAME OVERLAY (F10)")
+            self.btn_overlay.setStyleSheet("background-color: #0E3A4A; border: 1px solid #00E5FF; color: #FFFFFF;")
+            self.statusBar().showMessage("In-Game Overlay HUD hidden.")
+        else:
+            self.overlay.show()
+            self.overlay._enforce_topmost()
+            self.btn_overlay.setText("OVERLAY VISIBLE (F10)")
+            self.btn_overlay.setStyleSheet("background-color: #00A3B4; border: 1px solid #FFFFFF; color: #000000; font-weight: bold;")
+            self.statusBar().showMessage("In-Game Overlay HUD ACTIVE! Floats on top of Need for Speed Heat.")
+
+    def _snap_overlay_next_corner(self):
+        """Snaps overlay to the next corner (Top-Right, Top-Left, Bottom-Left, Bottom-Right)."""
+        if self.overlay and self.overlay.isVisible():
+            self.overlay.snap_next_corner()
+            self.statusBar().showMessage(f"In-Game Overlay snapped to corner position {self.overlay._corner_idx + 1}/4")
+
+    def _show_borderless_help(self):
+        """Displays step-by-step guidance on setting NFS Heat to Borderless mode."""
+        msg = (
+            "<h3>🎮 How to Display the In-Game Overlay over Need for Speed Heat</h3>"
+            "<p>DirectX games running in <b>Exclusive Fullscreen</b> mode bypass the Windows Desktop Window Manager (DWM), "
+            "which prevents external overlays from rendering on top of the screen.</p>"
+            "<p><b>To enable overlay support in 3 seconds:</b></p>"
+            "<ol>"
+            "<li>While inside <b>Need for Speed Heat</b>, press <b>Alt + Enter</b> on your keyboard.<br>"
+            "This immediately switches the game to Borderless / Windowed mode.</li>"
+            "<li><b>OR</b> from the game menu: Go to <b>Settings &rarr; Graphics / Video &rarr; Display Mode &rarr; 'Borderless'</b>.</li>"
+            "<li>Press <b>F10</b> anytime (even in the middle of a race) to toggle the GESTUREDRIVE X floating HUD!</li>"
+            "<li>Press <b>F9</b> to snap the HUD between screen corners so it never blocks your mini-map or speedometer.</li>"
+            "</ol>"
+            "<p style='color: #00E5FF;'><i>Borderless mode gives you full native resolution, 100% graphics fidelity, zero input lag, and the live gesture HUD floating over your car!</i></p>"
+        )
+        QMessageBox.information(self, "NFS Heat Overlay Setup Guide", msg)
+
+    def _cycle_sensitivity(self):
+        """Cycles through steering sensitivity presets."""
+        self._sens_idx = (self._sens_idx + 1) % len(self._sens_presets)
+        label, mult = self._sens_presets[self._sens_idx]
+        self.steering.sensitivity = mult
+        self.btn_sens.setText(label)
+        self.statusBar().showMessage(f"Steering Sensitivity changed to: {label}")
+        logger.info(f"Steering sensitivity set to {mult:.2f}x ({label})")
+
+    def _recenter_steering(self):
+        """Immediately zeros out any resting angle so the current hand tilt is dead center."""
+        raw = self.steering._last_valid_state.raw_angle_deg
+        self.steering.set_neutral_now(raw)
+        self.statusBar().showMessage(f"Wheel Recentered! Neutral angle set to {raw:+.1f}°")
 
     def _toggle_tracking(self):
         if not self.is_tracking:
@@ -445,6 +624,16 @@ class MainWindow(QMainWindow):
         else:
             self.badge_actions.set_status("COASTING / NEUTRAL", False)
 
+        # Stream to in-game overlay HUD if open
+        if self.overlay and self.overlay.isVisible():
+            self.overlay.update_telemetry(
+                rgb_frame,
+                steering_state,
+                gesture_res,
+                self.controller.state,
+                self.performance.fps
+            )
+
         # Stream to test dialog if open
         if self._test_dialog and self._test_dialog.isVisible():
             self._test_dialog.update_telemetry(self.controller.state)
@@ -463,8 +652,30 @@ class MainWindow(QMainWindow):
         is_running, pid = self.watchdog.check_nfs_heat_process()
         if is_running:
             self.badge_nfs.set_status(f"RUNNING (PID: {pid})", True, "#00E676")
+            self.banner_nfs.setStyleSheet("""
+                QFrame {
+                    background-color: #0A2415;
+                    border: 1px solid #00FF66;
+                    border-radius: 6px;
+                }
+            """)
+            self.lbl_banner_msg.setText(
+                f"<b>NFS HEAT DETECTED (PID: {pid}):</b> Press <b>[Alt + Enter]</b> in-game (or set Video to <b>'Borderless'</b>) "
+                "so the HUD stays visible on top! Press <b>[F10]</b> to toggle HUD."
+            )
         else:
             self.badge_nfs.set_status("NOT DETECTED (READY FOR LAUNCH)", False)
+            self.banner_nfs.setStyleSheet("""
+                QFrame {
+                    background-color: #0E1622;
+                    border: 1px solid #00E5FF;
+                    border-radius: 6px;
+                }
+            """)
+            self.lbl_banner_msg.setText(
+                "<b>NFS HEAT OVERLAY GUIDE:</b> Press <b>[Alt + Enter]</b> in NFS Heat (or set Video to <b>'Borderless'</b>) "
+                "so this floating HUD can render directly over your game! Press <b>[F10]</b> to toggle HUD anytime."
+            )
 
     def _open_controller_monitor(self):
         if not self._test_dialog:
@@ -494,12 +705,20 @@ class MainWindow(QMainWindow):
             self.webcam.target_height = cam_cfg.get("height", 720)
             self.webcam.mirror_horizontal = cam_cfg.get("mirror_horizontal", True)
 
-        # Update steering dynamics
+        # Update steering dynamics with sharp defaults
         steer_cfg = cfg.get("steering", {})
-        self.steering.deadzone_angle = steer_cfg.get("deadzone_angle", 3.0)
-        self.steering.max_angle = steer_cfg.get("max_angle", 42.0)
-        self.steering.sensitivity = steer_cfg.get("sensitivity", 1.15)
-        self.steering.response_curve = steer_cfg.get("response_curve", "cubic")
+        self.steering.deadzone_angle = steer_cfg.get("deadzone_angle", 1.0)
+        self.steering.max_angle = steer_cfg.get("max_angle", 14.0)
+        self.steering.sensitivity = steer_cfg.get("sensitivity", 1.40)
+        self.steering.smoothing_factor = steer_cfg.get("smoothing_factor", 0.92)
+        self.steering.response_curve = steer_cfg.get("response_curve", "progressive_sharp")
+
+        # Update throttle & brake dynamics
+        throt_cfg = cfg.get("throttle", {})
+        self.recognizer.throttle_smoothing = throt_cfg.get("smoothing_factor", 0.75)
+
+        brake_cfg = cfg.get("brake", {})
+        self.recognizer.brake_smoothing = brake_cfg.get("smoothing_factor", 0.85)
 
         # Update safety
         safe_cfg = cfg.get("safety", {})
@@ -508,6 +727,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """Gracefully release camera, virtual controller, and worker threads."""
         self._stop_tracking()
+        if self.overlay:
+            self.overlay.close()
         if self.tracker:
             self.tracker.release()
         self.controller.close()

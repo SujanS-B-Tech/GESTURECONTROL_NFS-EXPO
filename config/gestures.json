@@ -6,7 +6,11 @@
       "hands_required": ["Left", "Right"],
       "action_type": "analog_axis",
       "target": "left_stick_x",
-      "description": "Steer left/right with both hands in all modes (forward, reverse, drift)"
+      "max_angle_deg": 14.0,
+      "deadzone_deg": 1.0,
+      "sensitivity": 1.4,
+      "smoothing_factor": 0.92,
+      "description": "Sharp, responsive two-hand steering in all modes (forward, reverse, drift)"
     },
     "drive_forward": {
       "name": "Drive / Move Forward",
@@ -14,6 +18,7 @@
       "gesture": "both_closed_fists",
       "action_type": "analog_trigger",
       "target": "right_trigger",
+      "responsiveness": 0.75,
       "description": "Both hands closed/gripping wheel automatically drives forward freely"
     },
     "stop_and_reverse": {
@@ -22,28 +27,30 @@
       "gesture": "both_open_palms",
       "action_type": "analog_trigger",
       "target": "left_trigger",
-      "description": "Both palms open stops the car and reverses with full backward steering"
+      "responsiveness": 0.85,
+      "description": "Both palms open stops the car immediately and reverses with full backward steering"
     },
     "drift_handbrake": {
       "name": "Drift Handbrake",
       "hands_required": ["Left", "Right"],
-      "gesture": "one_closed_one_open",
+      "gesture": "one_closed_fist_one_open_palm",
       "action_type": "button_hold",
       "target": "button_x",
-      "description": "One hand closed and one hand open triggers handbrake for power drifting"
+      "throttle_maintain": 0.75,
+      "description": "Exactly one hand closed and one hand open triggers handbrake for power drifting"
     },
     "nitrous": {
       "name": "Nitrous Boost",
       "gesture": "thumbs_up",
       "action_type": "button_pulse",
       "target": "button_a",
-      "cooldown_ms": 600,
+      "cooldown_ms": 500,
       "description": "Thumbs up on either hand triggers Nitrous Boost (Xbox A)"
     }
   },
   "thresholds": {
-    "fist_curl_min": 0.48,
-    "open_palm_extension_min": 0.52,
-    "thumbs_up_angle_tolerance_deg": 40.0
+    "fist_curl_min": 0.40,
+    "open_palm_extension_min": 0.32,
+    "thumbs_up_angle_tolerance_deg": 38.0
   }
 }

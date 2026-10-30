@@ -132,3 +132,38 @@ def test_thumbs_up_triggers_nitrous():
 
     res = recognizer.process_frame(frame_res)
     assert res.thumbs_up_nitro is True
+
+
+def test_throttle_instant_punch():
+    """Verify sharp throttle response reaches near-full authority within 2 frames."""
+    recognizer = GestureRecognizer(throttle_smoothing=0.75)
+    left_fist = create_mock_hand("Left", "closed_fist")
+    right_fist = create_mock_hand("Right", "closed_fist")
+    frame = FrameHandResult(left_hand=left_fist, right_hand=right_fist)
+
+    # Frame 1
+    res1 = recognizer.process_frame(frame)
+    assert res1.throttle_analog >= 0.70
+
+    # Frame 2
+    res2 = recognizer.process_frame(frame)
+    assert res2.throttle_analog >= 0.90
+
+
+def test_brake_instant_bite_and_throttle_cutoff():
+    """Verify emergency stop cuts throttle instantly and bites with >80% brake on frame 1."""
+    recognizer = GestureRecognizer(throttle_smoothing=0.75, brake_smoothing=0.85)
+
+    # Start by driving forward
+    fist = create_mock_hand("Left", "closed_fist")
+    recognizer.process_frame(FrameHandResult(left_hand=fist, right_hand=fist))
+    recognizer.process_frame(FrameHandResult(left_hand=fist, right_hand=fist))
+
+    # Suddenly open both palms to reverse
+    open_h = create_mock_hand("Left", "open_palm")
+    res = recognizer.process_frame(FrameHandResult(left_hand=open_h, right_hand=open_h))
+
+    assert res.both_open_reverse is True
+    assert res.throttle_analog == 0.0      # Cutoff immediate!
+    assert res.brake_analog >= 0.80        # Instant stopping bite!
+

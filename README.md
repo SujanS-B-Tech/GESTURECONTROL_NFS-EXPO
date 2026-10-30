@@ -16,10 +16,13 @@ There is **zero keyboard emulation**, no physical steering wheels, and no physic
 
 | Vehicle Function | Natural Steering Action | Mapped Xbox 360 Input | How It Works In-Game |
 | :--- | :--- | :--- | :--- |
-| **Drive Forward & Steer** | **Both Hands Closed (Gripping Wheel)** ✊ ✊ | **RT (Gas) + Left Stick X** | Gripping the virtual steering wheel with both closed hands drives the car forward automatically. Tilt left to turn left, tilt right to turn right. |
+| **Drive Forward & Steer** | **Both Hands Closed (Gripping Wheel)** ✊ ✊ | **RT (Gas) + Left Stick X** | Gripping the virtual steering wheel with both closed hands drives the car forward automatically. Progressive precision response curve keeps you straight on highways and sharp on corners! |
 | **Stop & Reverse** | **Both Palms Open** ✋ ✋ | **LT (Brake / Reverse) + Left Stick X** | Opening both palms flat brakes the car to a stop and engages Reverse. You can steer left/right while reversing! |
 | **Drift Handbrake** | **One Hand Closed + One Hand Open** ✊ ✋ | **Button X (Handbrake) + Power** | Keep one hand closed and open the other hand while steering into a corner to pull the handbrake and initiate a power drift. |
-| **Nitrous Boost** | **Thumbs Up (Either Hand)** 👍 | **Button A** | Point your thumb straight up on either hand to ignite Nitrous boost (600ms cooldown). |
+| **Nitrous Boost** | **Deliberate Thumbs Up (Straight Up)** 👍 | **Button A** | Point your thumb straight up in the air away from the fist to fire Nitrous (strict thumb protrusion filter prevents accidental triggers while driving). |
+| **In-Game Overlay HUD** | **Press F10 or Click HUD Button** | **Floating PiP Window** | Floats a live mini-webcam and telemetry HUD over Need for Speed Heat without stealing game focus! Drag anywhere on your screen. |
+| **Recenter Wheel** | **Press C Key or Click Button** | **Zero Calibrate** | Instantly sets your current natural arm rest angle as dead center (0.0°). |
+| **Steering Sensitivity** | **Press S Key or Click Button** | **Cycle 0.8x / 1.0x / 1.2x / 1.4x** | Switch live between Smooth, Normal, Sport, and Ultra steering weights on the fly! |
 | **Emergency Stop** | **UI Button or F12 Hotkey** | **Neutral Reset** | Immediately zeros all axes, brakes, and triggers. |
 
 ---
