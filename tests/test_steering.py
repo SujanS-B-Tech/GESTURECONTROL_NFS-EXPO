@@ -87,7 +87,7 @@ def test_fist_steering_precision():
 
     assert res.active is True
     assert res.relative_angle_deg < -10.0
-    assert res.xbox_stick_x < -8000
+    assert res.xbox_stick_x < -6000
 
 
 def test_steering_hands_lost_returns_to_center():
@@ -127,4 +127,37 @@ def test_sharp_steering_sensitivity():
     # Must deliver at least 0.60 (60%) steering authority at ~8 degrees tilt
     assert res.normalized_value >= 0.60
     assert res.xbox_stick_x >= 19500
+
+
+def test_hypercar_smooth_precision():
+    """Verify hypercar precision mode: fine micro-corrections near center and full lock at limit."""
+    wheel = VirtualSteeringWheel(
+        neutral_angle=0.0,
+        deadzone_angle=1.5,
+        max_angle=24.0,
+        sensitivity=1.00,
+        smoothing_factor=1.0,
+        response_curve="hypercar_precision"
+    )
+
+    # 1. Micro-tilt (approx 3.5 degrees: dy = 29px on 480px width)
+    left = make_dummy_hand("Left", 400, 345, 400, 345)
+    right = make_dummy_hand("Right", 880, 374, 880, 374)
+    res_micro = wheel.update(FrameHandResult(left_hand=left, right_hand=right))
+
+    # At ~3.5 deg (just past deadzone), output should be ultra-gentle (< 10% deflection)
+    assert 3.0 < res_micro.relative_angle_deg < 4.0
+    assert res_micro.normalized_value < 0.10
+    assert res_micro.xbox_stick_x < 3300
+
+    # 2. Full Lock tilt (approx 25 degrees: dy = 224px on 480px width)
+    left_lock = make_dummy_hand("Left", 400, 248, 400, 248)
+    right_lock = make_dummy_hand("Right", 880, 472, 880, 472)
+    res_lock = wheel.update(FrameHandResult(left_hand=left_lock, right_hand=right_lock))
+
+    # Must provide full 100% steering lock for tight hairpins
+    assert res_lock.relative_angle_deg > 24.0
+    assert res_lock.normalized_value >= 0.99
+    assert res_lock.xbox_stick_x >= 32400
+
 

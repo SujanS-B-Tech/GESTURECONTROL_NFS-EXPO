@@ -30,28 +30,42 @@ class SteeringState:
 class VirtualSteeringWheel:
     """
     Simulates a physical steering wheel held at 9 o'clock (left) and 3 o'clock (right).
-    Computes rotation angle, deadzone compensation, non-linear curves, and decay to center.
+    Engineered with hypercar-tuned progressive precision, smooth cubic deadzone feathering,
+    and velocity-adaptive anti-jitter filtering for ultra-stable 200+ mph racing.
     """
 
     def __init__(
         self,
         neutral_angle: float = 0.0,
-        deadzone_angle: float = 1.0,
-        max_angle: float = 14.0,
-        sensitivity: float = 1.40,
-        smoothing_factor: float = 0.92,
-        response_curve: str = "progressive_sharp",
+        deadzone_angle: float = 1.5,
+        max_angle: float = 24.0,
+        max_left_angle: Optional[float] = None,
+        max_right_angle: Optional[float] = None,
+        sensitivity: float = 1.00,
+        smoothing_factor: float = 0.45,
+        response_curve: str = "hypercar_precision",
         invert: bool = False,
-        center_decay_rate: float = 0.35
+        center_decay_rate: float = 0.35,
+        adaptive_smoothing: bool = True
     ):
         self.neutral_angle = neutral_angle
         self.deadzone_angle = deadzone_angle
         self.max_angle = max_angle
+        self.max_left_angle = max_left_angle if max_left_angle is not None else max_angle
+        self.max_right_angle = max_right_angle if max_right_angle is not None else max_angle
         self.sensitivity = sensitivity
-        self.smoothing_factor = smoothing_factor  # 0.0 = freeze, 1.0 = instant (0.92 = sub-16ms snappy response)
+        self.smoothing_factor = smoothing_factor
         self.response_curve = response_curve
         self.invert = invert
         self.center_decay_rate = center_decay_rate
+        self.adaptive_smoothing = adaptive_smoothing
+
+        # Adaptive filter bounds:
+        # min_smoothing (0.28): glass-smooth tremor suppression on straights
+        # max_smoothing (0.82): instant latency-free response on high-speed corner entries
+        self.min_smoothing = 0.28
+        self.max_smoothing = 0.82
+        self._prev_rel_angle = 0.0
 
         self._current_normalized = 0.0
         self._last_valid_state = SteeringState()
@@ -59,12 +73,13 @@ class VirtualSteeringWheel:
     def set_neutral_now(self, current_raw_angle: float):
         """Quickly recalibrates the center neutral position to the current hand angle."""
         self.neutral_angle = current_raw_angle
+        self._prev_rel_angle = 0.0
         logger.info(f"Steering neutral calibrated to {self.neutral_angle:+.2f}°")
 
     def update(self, hand_result: FrameHandResult) -> SteeringState:
         """
         Process current frame hand result and compute updated steering state.
-        If both hands are visible, computes wheel rotation.
+        If both hands are visible, computes wheel rotation with hypercar smoothing.
         If hands are lost or only one hand is visible, smoothly decays steering to center (0.0).
         """
         if not hand_result.both_hands_detected:
@@ -74,6 +89,7 @@ class VirtualSteeringWheel:
             else:
                 self._current_normalized = 0.0
 
+            self._prev_rel_angle = 0.0
             xbox_val = int(self._current_normalized * 32767)
             state = SteeringState(
                 active=False,
@@ -117,19 +133,39 @@ class VirtualSteeringWheel:
         # Relative angle subtracting calibrated neutral
         rel_angle = raw_angle - self.neutral_angle
 
-        # Deadzone handling
+        # Deadzone handling with smooth cubic transition (prevents sudden step at threshold)
         effective_angle = 0.0
         abs_rel = abs(rel_angle)
         if abs_rel > self.deadzone_angle:
-            effective_angle = math.copysign(abs_rel - self.deadzone_angle, rel_angle)
+            excess = abs_rel - self.deadzone_angle
+            feather_band = 2.5  # Blend smoothly over 2.5 degrees past deadzone
+            if excess < feather_band:
+                t = excess / feather_band
+                blend = t * t * (3.0 - 2.0 * t)  # Smoothstep
+                effective_angle = math.copysign(excess * blend, rel_angle)
+            else:
+                effective_angle = math.copysign(excess, rel_angle)
 
-        # Normalize to [-1.0, 1.0]
-        usable_range = max(self.max_angle - self.deadzone_angle, 5.0)
+        # Normalize to [-1.0, 1.0] using left/right lock limits
+        if rel_angle < 0:
+            usable_range = max(self.max_left_angle - self.deadzone_angle, 6.0)
+        else:
+            usable_range = max(self.max_right_angle - self.deadzone_angle, 6.0)
+
         target_norm = np.clip(effective_angle / usable_range, -1.0, 1.0)
 
         # Apply response curves
-        if self.response_curve in ["progressive_sharp", "precision", "progressive"]:
-            # 85% linear + 15% quadratic: instant bite with steady center stability
+        if self.response_curve in ["hypercar_precision", "progressive_smooth", "precision"]:
+            # Hypercar Progressive Precision S-Curve:
+            # 35% linear base + 65% progressive power curve:
+            # - Small micro-adjustments (< 5 deg) give ultra-stable 200+ mph highway tracking
+            # - Sweepers and corner entries are smooth, progressive, and predictable
+            # - Hard turns ramp up seamlessly to 100% full lock for hairpins and 90° intersections
+            sign = math.copysign(1.0, target_norm)
+            x = abs(target_norm)
+            target_norm = sign * (0.35 * x + 0.65 * (x ** 2.6))
+        elif self.response_curve in ["progressive_sharp", "sharp"]:
+            # 85% linear + 15% quadratic
             sign = math.copysign(1.0, target_norm)
             target_norm = sign * (0.85 * abs(target_norm) + 0.15 * (abs(target_norm) ** 2))
         elif self.response_curve == "linear":
@@ -146,10 +182,23 @@ class VirtualSteeringWheel:
         if self.invert:
             target_norm = -target_norm
 
-        # Smooth interpolation (EMA) to eliminate hand jitter
+        # Velocity-adaptive anti-jitter smoothing filter
+        delta_angle = abs(rel_angle - self._prev_rel_angle)
+        self._prev_rel_angle = rel_angle
+
+        if self.smoothing_factor >= 1.0:
+            eff_smoothing = 1.0
+        elif self.adaptive_smoothing:
+            # Slow movements (micro-tremor / lane holding): low alpha for rock-solid stability
+            # Fast movements (snapping into corners): higher alpha for instant agility
+            speed_ratio = np.clip(delta_angle / 3.5, 0.0, 1.0)
+            eff_smoothing = self.min_smoothing + speed_ratio * (self.max_smoothing - self.min_smoothing)
+        else:
+            eff_smoothing = self.smoothing_factor
+
         self._current_normalized = (
-            self.smoothing_factor * target_norm +
-            (1.0 - self.smoothing_factor) * self._current_normalized
+            eff_smoothing * target_norm +
+            (1.0 - eff_smoothing) * self._current_normalized
         )
 
         xbox_val = int(np.clip(self._current_normalized * 32767, -32768, 32767))
@@ -171,5 +220,6 @@ class VirtualSteeringWheel:
     def reset(self):
         """Reset steering wheel state to dead center."""
         self._current_normalized = 0.0
+        self._prev_rel_angle = 0.0
         self._last_valid_state = SteeringState()
 

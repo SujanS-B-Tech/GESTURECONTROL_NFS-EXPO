@@ -15,11 +15,14 @@
   },
   "steering": {
     "neutral_angle": 0.0,
-    "deadzone_angle": 1.0,
-    "max_angle": 14.0,
-    "sensitivity": 1.4,
-    "smoothing_factor": 0.92,
-    "response_curve": "progressive_sharp",
+    "deadzone_angle": 1.5,
+    "max_angle": 24.0,
+    "max_left_angle": 24.0,
+    "max_right_angle": 24.0,
+    "sensitivity": 1.0,
+    "smoothing_factor": 0.45,
+    "response_curve": "hypercar_precision",
+    "adaptive_smoothing": true,
     "invert": false
   },
   "throttle": {

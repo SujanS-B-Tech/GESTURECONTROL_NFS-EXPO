@@ -6,11 +6,13 @@
       "hands_required": ["Left", "Right"],
       "action_type": "analog_axis",
       "target": "left_stick_x",
-      "max_angle_deg": 14.0,
-      "deadzone_deg": 1.0,
-      "sensitivity": 1.4,
-      "smoothing_factor": 0.92,
-      "description": "Sharp, responsive two-hand steering in all driving modes (forward and reverse)"
+      "max_angle_deg": 24.0,
+      "deadzone_deg": 1.5,
+      "sensitivity": 1.0,
+      "smoothing_factor": 0.45,
+      "response_curve": "hypercar_precision",
+      "adaptive_smoothing": true,
+      "description": "Hypercar-tuned progressive precision steering with velocity-adaptive anti-jitter filtering"
     },
     "drive_forward": {
       "name": "Drive / Move Forward",

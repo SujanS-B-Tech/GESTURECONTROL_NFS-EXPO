@@ -62,11 +62,14 @@ class MainWindow(QMainWindow):
         self.tracker: Optional[HandTracker] = None
         self.steering = VirtualSteeringWheel(
             neutral_angle=profile.neutral_angle,
-            deadzone_angle=profile.deadzone_angle if profile.is_calibrated else 1.0,
-            max_angle=profile.max_right_angle if profile.is_calibrated else 14.0,
-            sensitivity=1.40,
-            smoothing_factor=0.92,
-            response_curve="progressive_sharp"
+            deadzone_angle=profile.deadzone_angle if profile.is_calibrated else 1.5,
+            max_angle=profile.max_right_angle if profile.is_calibrated else 24.0,
+            max_left_angle=profile.max_left_angle if profile.is_calibrated else 24.0,
+            max_right_angle=profile.max_right_angle if profile.is_calibrated else 24.0,
+            sensitivity=1.00,
+            smoothing_factor=0.45,
+            response_curve="hypercar_precision",
+            adaptive_smoothing=True
         )
         self.recognizer = GestureRecognizer(
             throttle_smoothing=0.75,
@@ -76,14 +79,14 @@ class MainWindow(QMainWindow):
         self.mapper = InputMapper(self.controller)
         self.watchdog = SafetyWatchdog(self.controller)
 
-        # Sensitivity Presets (Sharp, High-Response Racing Steering)
+        # Sensitivity Presets (Optimized for Hypercar Stability & Progressive Smoothness)
         self._sens_presets = [
-            ("STEERING: SHARP (1.4x)", 1.40),
-            ("STEERING: HYPER (1.8x)", 1.80),
-            ("STEERING: ULTRA (2.2x)", 2.20),
-            ("STEERING: BALANCED (1.0x)", 1.00)
+            ("STEERING: HYPERCAR SMOOTH (1.0x)", 1.00),
+            ("STEERING: PRECISION PRO (0.85x)", 0.85),
+            ("STEERING: SPORT (1.15x)", 1.15),
+            ("STEERING: SHARP (1.40x)", 1.40)
         ]
-        self._sens_idx = 0  # SHARP default
+        self._sens_idx = 0  # Hypercar Smooth default
 
         # Active dialog references
         self._test_dialog: Optional[ControllerTestDialog] = None

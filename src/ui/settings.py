@@ -141,8 +141,8 @@ class SettingsDialog(QDialog):
         # Deadzone Slider
         steer_grid.addWidget(QLabel("Deadzone Angle:"), 0, 0)
         self.slider_deadzone = QSlider(Qt.Orientation.Horizontal)
-        self.slider_deadzone.setRange(1, 10)  # 1.0 to 10.0 deg
-        self.slider_deadzone.setValue(int(steer_cfg.get("deadzone_angle", 3.0)))
+        self.slider_deadzone.setRange(1, 8)  # 1.0 to 8.0 deg
+        self.slider_deadzone.setValue(int(steer_cfg.get("deadzone_angle", 2.0)))
         self.lbl_deadzone_val = QLabel(f"{self.slider_deadzone.value()}°")
         self.slider_deadzone.valueChanged.connect(lambda v: self.lbl_deadzone_val.setText(f"{v}°"))
         steer_grid.addWidget(self.slider_deadzone, 0, 1)
@@ -151,8 +151,8 @@ class SettingsDialog(QDialog):
         # Max Steering Angle Slider
         steer_grid.addWidget(QLabel("Max Lock Angle:"), 1, 0)
         self.slider_max_angle = QSlider(Qt.Orientation.Horizontal)
-        self.slider_max_angle.setRange(25, 60)
-        self.slider_max_angle.setValue(int(steer_cfg.get("max_angle", 42.0)))
+        self.slider_max_angle.setRange(16, 50)
+        self.slider_max_angle.setValue(int(steer_cfg.get("max_angle", 24.0)))
         self.lbl_max_angle_val = QLabel(f"{self.slider_max_angle.value()}°")
         self.slider_max_angle.valueChanged.connect(lambda v: self.lbl_max_angle_val.setText(f"{v}°"))
         steer_grid.addWidget(self.slider_max_angle, 1, 1)
@@ -161,8 +161,8 @@ class SettingsDialog(QDialog):
         # Steering Sensitivity Slider
         steer_grid.addWidget(QLabel("Sensitivity:"), 2, 0)
         self.slider_sens = QSlider(Qt.Orientation.Horizontal)
-        self.slider_sens.setRange(50, 200)  # 0.5 to 2.0
-        self.slider_sens.setValue(int(steer_cfg.get("sensitivity", 1.15) * 100))
+        self.slider_sens.setRange(50, 180)  # 0.50 to 1.80
+        self.slider_sens.setValue(int(steer_cfg.get("sensitivity", 1.00) * 100))
         self.lbl_sens_val = QLabel(f"{self.slider_sens.value()/100:.2f}x")
         self.slider_sens.valueChanged.connect(lambda v: self.lbl_sens_val.setText(f"{v/100:.2f}x"))
         steer_grid.addWidget(self.slider_sens, 2, 1)
@@ -171,9 +171,11 @@ class SettingsDialog(QDialog):
         # Steering Response Curve
         steer_grid.addWidget(QLabel("Response Curve:"), 3, 0)
         self.combo_curve = QComboBox()
-        self.combo_curve.addItem("Cubic (Progressive / High Center Precision)", "cubic")
-        self.combo_curve.addItem("Exponential (Fast Turn-in)", "exponential")
+        self.combo_curve.addItem("Hypercar Precision (Smooth S-Curve)", "hypercar_precision")
+        self.combo_curve.addItem("Cubic (Progressive High Center Precision)", "cubic")
+        self.combo_curve.addItem("Progressive Sharp (Snappy Turn-in)", "progressive_sharp")
         self.combo_curve.addItem("Linear (Direct 1:1)", "linear")
+        self.combo_curve.addItem("Exponential (Fast Turn-in)", "exponential")
         steer_grid.addWidget(self.combo_curve, 3, 1, 1, 2)
 
         layout.addWidget(grp_steer)
