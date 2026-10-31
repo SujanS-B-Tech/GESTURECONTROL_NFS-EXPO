@@ -48,15 +48,16 @@ def test_stop_and_reverse_dispatch():
     assert controller.state.left_stick_x == -10000
 
 
-def test_drift_handbrake_dispatch():
+def test_drift_gesture_removed_button_x_inactive():
+    """Verify Button X (handbrake) is not triggered by gestures (front/reverse/steer scheme)."""
     controller = VirtualXboxController()
     mapper = InputMapper(controller)
 
     steering = SteeringState(xbox_stick_x=22000)
-    gestures = FrameGestureResult(one_open_one_closed_drift=True, throttle_analog=0.65)
+    gestures = FrameGestureResult(both_closed_drive=True, throttle_analog=1.0)
 
     mapper.process(steering, gestures)
-    assert controller.state.button_x is True
+    assert controller.state.button_x is False
     assert controller.state.right_trigger > 100
     assert controller.state.left_stick_x == 22000
 

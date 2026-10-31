@@ -10,7 +10,7 @@
       "deadzone_deg": 1.0,
       "sensitivity": 1.4,
       "smoothing_factor": 0.92,
-      "description": "Sharp, responsive two-hand steering in all modes (forward, reverse, drift)"
+      "description": "Sharp, responsive two-hand steering in all driving modes (forward and reverse)"
     },
     "drive_forward": {
       "name": "Drive / Move Forward",
@@ -29,15 +29,6 @@
       "target": "left_trigger",
       "responsiveness": 0.85,
       "description": "Both palms open stops the car immediately and reverses with full backward steering"
-    },
-    "drift_handbrake": {
-      "name": "Drift Handbrake",
-      "hands_required": ["Left", "Right"],
-      "gesture": "one_closed_fist_one_open_palm",
-      "action_type": "button_hold",
-      "target": "button_x",
-      "throttle_maintain": 0.75,
-      "description": "Exactly one hand closed and one hand open triggers handbrake for power drifting"
     },
     "nitrous": {
       "name": "Nitrous Boost",

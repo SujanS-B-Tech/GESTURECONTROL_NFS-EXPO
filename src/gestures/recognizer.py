@@ -1,9 +1,9 @@
 """
 High-Precision Intuitive Gesture Recognition Engine for GESTUREDRIVE X.
 Engineered for razor-sharp, deviation-free racing control in Need for Speed Heat:
-- Both fists closed / gripping virtual wheel = Drive Forward (Throttle RT: instant punch) + Steer
+- Natural wheel grip / fists closed = Drive Forward (Throttle RT: instant punch) + Steer
 - Both palms open flat = Stop & Reverse (Brake LT: instant bite) + Steer backward
-- One closed fist + one open palm = Drift Handbrake (Xbox Button X + 75% throttle maintain)
+- Front, Reverse, and Steer control with zero accidental drift/handbrake interference
 - Thumbs up (either hand) = Nitrous Boost (Xbox Button A pulse)
 """
 
@@ -46,10 +46,10 @@ class FrameGestureResult:
     left: Optional[HandGestureState] = None
     right: Optional[HandGestureState] = None
 
-    # Core intuitive driving modes
-    both_closed_drive: bool = False       # Both hands gripped -> Move forward freely
+    # Core intuitive driving modes (Front, Reverse, Steer)
+    both_closed_drive: bool = False       # Wheel grip -> Move forward freely
     both_open_reverse: bool = False       # Both palms open -> Stop & Reverse
-    one_open_one_closed_drift: bool = False # One closed fist, one open palm -> Drift Handbrake
+    one_open_one_closed_drift: bool = False # Drift gesture removed (maintained as False for API safety)
     thumbs_up_nitro: bool = False         # Either hand thumbs up -> Nitrous
 
     throttle_analog: float = 0.0          # 0.0 to 1.0 (RT)
@@ -184,10 +184,9 @@ class GestureRecognizer:
 
     def process_frame(self, hand_result: FrameHandResult) -> FrameGestureResult:
         """
-        Processes driving intent across hands with deviation-proof two-hand rules:
-        - Both hands gripping/closed = Drive forward (Throttle RT) & Steer smoothly
+        Processes driving intent across hands with front, reverse, and steer rules:
+        - Natural grip / fists closed = Drive forward (Throttle RT) & Steer smoothly
         - Both hands open flat = Stop & Reverse (Brake LT) & Steer backward
-        - Exactly one open palm + one closed fist = Drift Handbrake (Button X)
         - Either hand thumbs up = Nitrous Boost (Button A)
         """
         left_state = self.analyze_hand(hand_result.left_hand)
@@ -200,19 +199,13 @@ class GestureRecognizer:
 
         both_closed = False
         both_open = False
-        one_open_one_closed = False
 
         if both_detected:
             # 1. Stop & Reverse: Both hands deliberately open flat
             if left_state.is_open and right_state.is_open:
                 both_open = True
-
-            # 2. Drift Handbrake: Exactly ONE open palm and ONE closed fist
-            # Strictly requires the other hand to be an actual fist to eliminate accidental drifting!
-            elif (left_state.is_open and right_state.is_fist) or (right_state.is_open and left_state.is_fist):
-                one_open_one_closed = True
-
-            # 3. Drive Forward: Gripping the steering wheel (fists / natural driving posture)
+            # 2. Drive Forward: Gripping the steering wheel (fists / natural driving posture)
+            # Drift handbrake is eliminated so turning or relaxing one hand does not stall driving!
             else:
                 both_closed = True
 
@@ -242,12 +235,6 @@ class GestureRecognizer:
             # Instant cutoff of residual throttle
             self._current_throttle = 0.0
 
-        elif one_open_one_closed:
-            # Drift handbrake: maintain high wheel power through slide
-            target_throttle = 0.75
-            target_brake = 0.0
-            self._current_brake = 0.0
-
         else:
             # Decay to neutral
             target_throttle = 0.0
@@ -268,7 +255,7 @@ class GestureRecognizer:
             right=right_state,
             both_closed_drive=both_closed,
             both_open_reverse=both_open,
-            one_open_one_closed_drift=one_open_one_closed,
+            one_open_one_closed_drift=False,
             thumbs_up_nitro=nitro_active,
             throttle_analog=float(np.clip(self._current_throttle, 0.0, 1.0)),
             brake_analog=float(np.clip(self._current_brake, 0.0, 1.0))

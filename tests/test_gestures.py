@@ -113,15 +113,17 @@ def test_both_open_stops_and_reverses():
     assert res.throttle_analog == 0.0
 
 
-def test_one_closed_one_open_drifts():
+def test_one_closed_one_open_drives_forward_no_drift():
+    """Verify drift option using gesture is removed: turning or relaxing one hand keeps driving forward."""
     recognizer = GestureRecognizer()
     left_fist = create_mock_hand("Left", "closed_fist")
     right_open = create_mock_hand("Right", "open_palm")
     frame_res = FrameHandResult(left_hand=left_fist, right_hand=right_open)
 
     res = recognizer.process_frame(frame_res)
-    assert res.one_open_one_closed_drift is True
-    assert res.throttle_analog > 0.0  # Drift power maintained
+    assert res.one_open_one_closed_drift is False
+    assert res.both_closed_drive is True
+    assert res.throttle_analog > 0.0  # Drive forward power maintained
 
 
 def test_thumbs_up_triggers_nitrous():

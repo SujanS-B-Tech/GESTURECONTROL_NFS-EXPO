@@ -1,10 +1,9 @@
 """
 Intuitive Input Mapping Engine for GESTUREDRIVE X.
 Translates:
-- Two-hand steering wheel -> Analog Left Stick X (works in forward, reverse, and drift)
-- Both hands closed -> Drive forward (RT)
+- Two-hand steering wheel -> Analog Left Stick X (works in forward and reverse)
+- Wheel grip / both hands closed -> Drive forward (RT)
 - Both palms open -> Stop & Reverse (LT)
-- One closed, one open -> Drift Handbrake (Button X) + power
 - Either hand thumbs up -> Nitrous Boost (Button A)
 """
 
@@ -44,15 +43,13 @@ class InputMapper:
 
         now = time.perf_counter()
 
-        # 1. Analog Steering (Always active in forward, reverse, and drift)
+        # 1. Analog Steering (Always active in forward and reverse)
         self.controller.set_steering(steering.xbox_stick_x)
 
-        # 2. Drift Handbrake (One hand closed + one hand open -> Button X)
-        is_drifting = gestures.one_open_one_closed_drift
-        self.controller.set_button("button_x", is_drifting)
+        # 2. Handbrake (X) - Drift gesture removed: always neutral
+        self.controller.set_button("button_x", False)
 
-        # 3. Throttle & Brake
-        # If drifting, maintain power to keep wheels spinning
+        # 3. Throttle & Brake (Front & Reverse)
         self.controller.set_throttle(gestures.throttle_analog)
         self.controller.set_brake(gestures.brake_analog)
 

@@ -16,9 +16,8 @@ There is **zero keyboard emulation**, no physical steering wheels, and no physic
 
 | Vehicle Function | Natural Steering Action | Mapped Xbox 360 Input | How It Works In-Game |
 | :--- | :--- | :--- | :--- |
-| **Drive Forward & Steer** | **Both Hands Closed (Gripping Wheel)** ✊ ✊ | **RT (Gas) + Left Stick X** | Gripping the virtual steering wheel with both closed hands drives the car forward automatically. Progressive precision response curve keeps you straight on highways and sharp on corners! |
+| **Drive Forward & Steer** | **Hands Gripped (Wheel Grip)** ✊ ✊ | **RT (Gas) + Left Stick X** | Gripping the virtual steering wheel drives forward automatically with full steering authority. Turning into corners is smooth and continuous with zero accidental drift stalls! |
 | **Stop & Reverse** | **Both Palms Open** ✋ ✋ | **LT (Brake / Reverse) + Left Stick X** | Opening both palms flat brakes the car to a stop and engages Reverse. You can steer left/right while reversing! |
-| **Drift Handbrake** | **One Hand Closed + One Hand Open** ✊ ✋ | **Button X (Handbrake) + Power** | Keep one hand closed and open the other hand while steering into a corner to pull the handbrake and initiate a power drift. |
 | **Nitrous Boost** | **Deliberate Thumbs Up (Straight Up)** 👍 | **Button A** | Point your thumb straight up in the air away from the fist to fire Nitrous (strict thumb protrusion filter prevents accidental triggers while driving). |
 | **In-Game Overlay HUD** | **Press F10 or Click HUD Button** | **Floating PiP Window** | Floats a live mini-webcam and telemetry HUD over Need for Speed Heat without stealing game focus! Drag anywhere on your screen. |
 | **Recenter Wheel** | **Press C Key or Click Button** | **Zero Calibrate** | Instantly sets your current natural arm rest angle as dead center (0.0°). |
@@ -104,10 +103,9 @@ Before launching Need for Speed Heat, you can verify every input independently:
 2. An interactive 2D Xbox 360 gamepad diagram will appear.
 3. Test your gestures:
    - Rotate hands: observe the **Left Stick X** moving smoothly left and right.
-   - Clench right fist: observe **RT (Throttle)** filling up to 255.
-   - Open left palm: observe **LT (Brake)** filling up.
+   - Clench fists / grip wheel: observe **RT (Throttle)** filling up to 255.
+   - Open palms flat: observe **LT (Brake / Reverse)** filling up.
    - Thumbs up: observe **Button A** illuminate in green.
-   - Clench both fists: observe **Button X** illuminate in blue.
 4. Once verified, close the monitor.
 
 ---
@@ -161,9 +159,10 @@ All unit tests cover:
 
 ## 10. Building Standalone Windows Executable (.exe)
 
-To bundle GESTUREDRIVE X into a standalone Windows executable for distribution:
+To bundle GESTUREDRIVE X into a standalone Windows executable for distribution to machines without Python:
+- Run [`build_executable.bat`](file:///d:/PROJECTS/Projects/GESTURECONTROL-NFS/build_executable.bat) or execute:
 ```bash
-.\.venv\Scripts\pyinstaller.exe --noconsole --name="GESTUREDRIVE-X" --add-data="assets;assets" --add-data="config;config" --icon="assets/icon.ico" main.py
+.\.venv\Scripts\pyinstaller.exe --noconsole --name="GESTUREDRIVE-X" --icon="assets/icon.ico" --add-data="assets;assets" --add-data="config;config" --collect-all=mediapipe --collect-all=vgamepad --collect-all=PySide6 --clean main.py
 ```
-The compiled executable will be located in the `dist/GESTUREDRIVE-X/` folder.
+The compiled self-contained bundle will be located in the `dist/GESTUREDRIVE-X/` folder with driver installers included.
 

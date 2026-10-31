@@ -331,11 +331,7 @@ class InGameOverlayHUD(QWidget):
             self.lbl_steer.setStyleSheet("color: #A0A0B0; font-size: 11px; font-weight: bold; font-family: 'Consolas';")
 
         # Update Mode Badge and Card border
-        if gestures.one_open_one_closed_drift:
-            self.lbl_mode.setText("DRIFT (X)")
-            self.lbl_mode.setStyleSheet("color: #FF9100; font-size: 11px; font-weight: bold;")
-            self.card.setStyleSheet("QFrame { background-color: rgba(10, 10, 16, 240); border: 2px solid #FF9100; border-radius: 10px; }")
-        elif gamepad.button_a:
+        if gamepad.button_a:
             self.lbl_mode.setText("NITRO (A)")
             self.lbl_mode.setStyleSheet("color: #00E5FF; font-size: 11px; font-weight: bold;")
             self.card.setStyleSheet("QFrame { background-color: rgba(10, 10, 16, 240); border: 2px solid #00E5FF; border-radius: 10px; }")

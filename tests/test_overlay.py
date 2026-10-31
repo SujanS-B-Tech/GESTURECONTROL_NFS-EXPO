@@ -92,17 +92,16 @@ def test_overlay_telemetry_rendering(qapp):
     hud.update_telemetry(fake_frame, steering, gestures_rev, gamepad_rev, fps=58.0)
     assert "REVERSE" in hud.lbl_mode.text()
 
-    # Test drift handbrake mode
-    gestures_drift = FrameGestureResult(
+    # Test coast mode
+    gestures_coast = FrameGestureResult(
         both_closed_drive=False,
         both_open_reverse=False,
-        one_open_one_closed_drift=True,
         throttle_analog=0.0,
         brake_analog=0.0
     )
-    gamepad_drift = GamepadState(button_x=True)
-    hud.update_telemetry(fake_frame, steering, gestures_drift, gamepad_drift, fps=60.0)
-    assert "DRIFT" in hud.lbl_mode.text()
+    gamepad_coast = GamepadState()
+    hud.update_telemetry(fake_frame, steering, gestures_coast, gamepad_coast, fps=60.0)
+    assert "COAST" in hud.lbl_mode.text()
 
     # Test nitro active
     gamepad_nitro = GamepadState(button_a=True)

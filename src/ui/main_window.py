@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
         self._sens_presets = [
             ("STEERING: SHARP (1.4x)", 1.40),
             ("STEERING: HYPER (1.8x)", 1.80),
-            ("STEERING: DRIFT PRO (2.2x)", 2.20),
+            ("STEERING: ULTRA (2.2x)", 2.20),
             ("STEERING: BALANCED (1.0x)", 1.00)
         ]
         self._sens_idx = 0  # SHARP default
@@ -612,10 +612,8 @@ class MainWindow(QMainWindow):
         else:
             self.badge_right_hand.set_status("SEARCHING...", False)
 
-        # Driving Intent & Action Badge (Nitro, Drift Handbrake, Drive, Reverse)
-        if gesture_res.one_open_one_closed_drift:
-            self.badge_actions.set_status("DRIFT HANDBRAKE (X)", True, "#FF9100")
-        elif self.controller.state.button_a:
+        # Driving Intent & Action Badge (Nitro, Drive, Reverse)
+        if self.controller.state.button_a:
             self.badge_actions.set_status("NITROUS BOOST (A)", True, "#00E676")
         elif gesture_res.both_open_reverse:
             self.badge_actions.set_status("STOP & REVERSE (LT)", True, "#00E5FF")
